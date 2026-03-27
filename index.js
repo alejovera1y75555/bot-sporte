@@ -5,6 +5,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 // Iniciamos la app y el cliente de Claude
 const app = express();
+// Guardar estado de conversación por usuario
+const estadoUsuarios = {};
 const claude = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 app.use(express.json());
 
@@ -18,7 +20,7 @@ const palabrasClave = [
   'lento', 'lenta', 'tarda', 'demora',
   'no conecta', 'no funciona', 'no carga', 'no abre',
   'pantalla', 'reiniciar', 'reinicio', 'error',
-  'cable', 'soporte', 'falla', 'fallo', 'caída' , 'ventilador'
+  'cable', 'soporte', 'falla', 'fallo', 'caída', 'ventilador'
 ];
 
 // ─────────────────────────────────────
@@ -53,7 +55,7 @@ async function enviarMensaje(numero, texto) {
   const resultado = await response.json();
   console.log('📤 Respuesta de Meta:', JSON.stringify(resultado));
   return resultado;
-  
+
 }
 
 // ─────────────────────────────────────
@@ -128,8 +130,7 @@ app.post('/webhook', async (req, res) => {
 
       console.log('✅ Respuesta enviada');
     } else {
-      // Si no hay palabra clave, mensaje genérico
-      const mensajeGenerico = '👋 Hola, soy el asistente de soporte técnico. Puedo ayudarte con problemas de internet, wifi, contraseñas, y más. ¿Cuál es tu problema?';
+      const mensajeGenerico = '👋 Hola, soy el asistente de soporte técnico...';
       await enviarMensaje(numeroUsuario, mensajeGenerico);
     }
 
