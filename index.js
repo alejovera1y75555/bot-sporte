@@ -18,7 +18,7 @@ const palabrasClave = [
   'lento', 'lenta', 'tarda', 'demora',
   'no conecta', 'no funciona', 'no carga', 'no abre',
   'pantalla', 'reiniciar', 'reinicio', 'error',
-  'cable', 'soporte', 'falla', 'fallo', 'caída', 'ventilador'
+  'cable', 'soporte', 'falla', 'fallo', 'caída' , 'ventilador'
 ];
 
 // ─────────────────────────────────────
@@ -33,10 +33,10 @@ function contienePalabraClave(mensaje) {
 // ─────────────────────────────────────
 // FUNCIÓN: enviar mensaje por WhatsApp
 // ─────────────────────────────────────
-async function enviarBotones(numero) {
+async function enviarMensaje(numero, texto) {
   const url = `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`;
 
-  await fetch(url, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
@@ -45,31 +45,15 @@ async function enviarBotones(numero) {
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       to: numero,
-      type: 'interactive',
-      interactive: {
-        type: 'button',
-        body: {
-          text: '👋 Hola, soy el asistente de soporte técnico.\n¿Qué problema tienes?'
-        },
-        action: {
-          buttons: [
-            {
-              type: 'reply',
-              reply: { id: 'internet', title: '🌐 Internet' }
-            },
-            {
-              type: 'reply',
-              reply: { id: 'password', title: '🔑 Contraseña' }
-            },
-            {
-              type: 'reply',
-              reply: { id: 'otro', title: '❓ Otro' }
-            }
-          ]
-        }
-      }
+      type: 'text',
+      text: { body: texto }
     })
   });
+
+  const resultado = await response.json();
+  console.log('📤 Respuesta de Meta:', JSON.stringify(resultado));
+  return resultado;
+  
 }
 
 // ─────────────────────────────────────
