@@ -1,18 +1,37 @@
-// Cargamos las librerías que instalamos
 require('dotenv').config();
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
 
-// Iniciamos la app y el cliente de Claude
 const app = express();
-// Guardar estado de conversación por usuario
-const estadoUsuarios = {};
 const claude = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
 app.use(express.json());
 
 // ─────────────────────────────────────
-// PALABRAS CLAVE de soporte técnico
-// Agrega o quita las que quieras
+// TU número personal — aquí recibes
+// la alerta cuando pidan un técnico
+// Cámbialo por tu WhatsApp con 57
+// ─────────────────────────────────────
+const TU_NUMERO = '573215269498';
+
+// ─────────────────────────────────────
+// Estado de cada usuario
+// 'nuevo'     = primer mensaje
+// 'bot'       = siendo atendido por bot
+// 'transferido' = pidió técnico humano
+// ─────────────────────────────────────
+const estadoUsuarios = {};
+
+// ─────────────────────────────────────
+// Palabras que piden técnico humano
+// ─────────────────────────────────────
+const palabrasTransferencia = [
+  'técnico', 'tecnico', 'agente', 'humano',
+  'persona', 'hablar con alguien', 'transferir',
+  'no entiendo', 'no pude', 'no funciono',
+];
+
+// ─────────────────────────────────────
+// Palabras clave de soporte técnico
 // ─────────────────────────────────────
 const palabrasClave = [
   'internet', 'wifi', 'red', 'router', 'señal',
@@ -20,20 +39,25 @@ const palabrasClave = [
   'lento', 'lenta', 'tarda', 'demora',
   'no conecta', 'no funciona', 'no carga', 'no abre',
   'pantalla', 'reiniciar', 'reinicio', 'error',
-  'cable', 'soporte', 'falla', 'fallo', 'caída', 'ventilador'
+  'cable', 'soporte', 'falla', 'fallo', 'caída', 'ventilador',
+  'computador', 'pc', 'impresora', 'sistema'
 ];
 
 // ─────────────────────────────────────
-// FUNCIÓN: detectar si el mensaje
-// contiene alguna palabra clave
+// Detectores
 // ─────────────────────────────────────
-function contienePalabraClave(mensaje) {
+function quiereTecnico(mensaje) {
   const mensajeLower = mensaje.toLowerCase();
-  return palabrasClave.some(palabra => mensajeLower.includes(palabra));
+  return palabrasTransferencia.some(p => mensajeLower.includes(p));
+}
+
+function tieneProblema(mensaje) {
+  const mensajeLower = mensaje.toLowerCase();
+  return palabrasClave.some(p => mensajeLower.includes(p));
 }
 
 // ─────────────────────────────────────
-// FUNCIÓN: enviar mensaje por WhatsApp
+// Enviar mensaje por WhatsApp
 // ─────────────────────────────────────
 async function enviarMensaje(numero, texto) {
   const url = `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}/messages`;
@@ -55,21 +79,20 @@ async function enviarMensaje(numero, texto) {
   const resultado = await response.json();
   console.log('📤 Respuesta de Meta:', JSON.stringify(resultado));
   return resultado;
-
 }
 
 // ─────────────────────────────────────
-// FUNCIÓN: preguntarle a Claude cómo
-// resolver el problema del usuario
+// Preguntarle a Claude
 // ─────────────────────────────────────
 async function preguntarAClaude(mensajeUsuario) {
   const respuesta = await claude.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 1000,
-    system: `Eres un asistente de soporte técnico amable y claro. 
-    Tu trabajo es ayudar a los usuarios a resolver problemas técnicos paso a paso.
-    Responde siempre en español, de forma corta y fácil de entender.
-    Máximo 6 pasos por respuesta. Usa emojis para que sea más amigable.`,
+    system: `Eres un asistente de soporte técnico amable y claro.
+Tu trabajo es ayudar a los usuarios a resolver problemas técnicos paso a paso.
+Responde siempre en español, de forma corta y fácil de entender.
+Máximo 6 pasos por respuesta. Usa emojis para que sea más amigable.
+Al final de cada respuesta agrega siempre: "Si prefieres hablar con un técnico escribe: *técnico*"`,
     messages: [
       { role: 'user', content: mensajeUsuario }
     ]
@@ -79,9 +102,7 @@ async function preguntarAClaude(mensajeUsuario) {
 }
 
 // ─────────────────────────────────────
-// RUTA: verificación del webhook
-// Meta llama aquí para confirmar
-// que tu servidor es tuyo
+// Webhook verificación
 // ─────────────────────────────────────
 app.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
@@ -89,7 +110,7 @@ app.get('/webhook', (req, res) => {
   const challenge = req.query['hub.challenge'];
 
   if (mode === 'subscribe' && token === process.env.VERIFY_TOKEN) {
-    console.log('✅ Webhook verificado correctamente');
+    console.log('✅ Webhook verificado');
     res.status(200).send(challenge);
   } else {
     res.sendStatus(403);
@@ -97,21 +118,18 @@ app.get('/webhook', (req, res) => {
 });
 
 // ─────────────────────────────────────
-// RUTA: recibir mensajes de WhatsApp
-// Aquí llega cada mensaje de un usuario
+// Recibir mensajes
 // ─────────────────────────────────────
 app.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
 
-    // Verificamos que es un mensaje de WhatsApp
     if (body.object !== 'whatsapp_business_account') {
       return res.sendStatus(404);
     }
 
     const mensaje = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
 
-    // Si no hay mensaje de texto, ignoramos
     if (!mensaje || mensaje.type !== 'text') {
       return res.sendStatus(200);
     }
@@ -121,23 +139,53 @@ app.post('/webhook', async (req, res) => {
 
     console.log(`📩 Mensaje de ${numeroUsuario}: ${textoUsuario}`);
 
-    // Si el usuario NO tiene conversación activa, iniciar conversación SIEMPRE
+    // ── Si el usuario ya fue transferido a técnico
+    // el bot no interrumpe esa conversación ──
+    if (estadoUsuarios[numeroUsuario] === 'transferido') {
+      console.log('👨‍💻 Usuario ya transferido — bot en silencio');
+      return res.sendStatus(200);
+    }
+
+    // ── Primer mensaje — saludo y presentación ──
     if (!estadoUsuarios[numeroUsuario]) {
-      console.log('🆕 Iniciando conversación');
+      console.log('🆕 Nuevo usuario — enviando saludo');
+      estadoUsuarios[numeroUsuario] = 'bot';
 
-      estadoUsuarios[numeroUsuario] = true;
-
-      // Si ya está en conversación, seguir normal
-      const respuestaClaude = await preguntarAClaude(textoUsuario);
-      await enviarMensaje(numeroUsuario, respuestaClaude);
+      await enviarMensaje(numeroUsuario,
+        '👋 ¡Hola! Bienvenido al soporte técnico.\n\n🤖 Soy el asistente virtual y estoy aquí para ayudarte con problemas de:\n• Internet y WiFi\n• Contraseñas\n• Computadores e impresoras\n• Errores del sistema\n\nCuéntame, *¿qué problema tienes?* 🛠️\n\nSi prefieres hablar directamente con un técnico escribe: *técnico*'
+      );
 
       return res.sendStatus(200);
     }
 
-    // Si ya está en conversación, seguir normal
+    // ── El usuario pide técnico humano ──
+    if (quiereTecnico(textoUsuario)) {
+      console.log('👨‍💻 Usuario pidió técnico humano');
+      estadoUsuarios[numeroUsuario] = 'transferido';
+
+      await enviarMensaje(numeroUsuario,
+        '👨‍💻 Perfecto, te voy a conectar con un técnico en sistemas ahora mismo.\n\n⏳ Por favor espera un momento, en breve te contactará.'
+      );
+
+      await enviarMensaje(TU_NUMERO,
+        `🔔 *ALERTA - Cliente necesita técnico*\n\nNúmero del cliente: +${numeroUsuario}\n\nEscríbele directamente para atenderlo.`
+      );
+
+      return res.sendStatus(200);
+    }
+
+    // ── El usuario describe un problema técnico ──
+    if (tieneProblema(textoUsuario)) {
+      console.log('🔍 Problema técnico — consultando Claude...');
+      const respuestaClaude = await preguntarAClaude(textoUsuario);
+      await enviarMensaje(numeroUsuario, respuestaClaude);
+      console.log('✅ Respuesta enviada');
+      return res.sendStatus(200);
+    }
+
+    // ── Mensaje que no encaja en nada — Claude responde igual ──
     const respuestaClaude = await preguntarAClaude(textoUsuario);
     await enviarMensaje(numeroUsuario, respuestaClaude);
-
     return res.sendStatus(200);
 
   } catch (error) {
@@ -147,7 +195,7 @@ app.post('/webhook', async (req, res) => {
 });
 
 // ─────────────────────────────────────
-// Iniciamos el servidor en el puerto 3000
+// Iniciar servidor
 // ─────────────────────────────────────
 const PUERTO = 3000;
 app.listen(PUERTO, () => {
