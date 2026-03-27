@@ -127,19 +127,18 @@ app.post('/webhook', async (req, res) => {
 
       estadoUsuarios[numeroUsuario] = true;
 
+      // Si ya está en conversación, seguir normal
       const respuestaClaude = await preguntarAClaude(textoUsuario);
       await enviarMensaje(numeroUsuario, respuestaClaude);
 
       return res.sendStatus(200);
     }
 
-    res.sendStatus(200);
-
     // Si ya está en conversación, seguir normal
     const respuestaClaude = await preguntarAClaude(textoUsuario);
     await enviarMensaje(numeroUsuario, respuestaClaude);
 
-    res.sendStatus(200);
+    return res.sendStatus(200);
 
   } catch (error) {
     console.error('❌ Error:', error.message);
