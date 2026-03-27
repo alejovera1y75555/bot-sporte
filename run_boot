@@ -1,0 +1,16 @@
+/*  1. Abre VS Code y la carpeta bot-soporte
+
+2. Abre dos terminales — en la primera arranca el bot:
+node index.js
+
+3. En la segunda terminal arranca ngrok:
+.\ngrok.exe http 3000
+
+4. Copia la URL nueva que aparece, algo como:
+https://xxxx-xxxx.ngrok-free.dev
+
+5. Ve a Meta for Developers → tu app → WhatsApp → Configuración de la API → busca la sección Webhook → edita la URL y pon la nueva:
+https://xxxx-xxxx.ngrok-free.dev/webhook
+
+6. Haz clic en Verificar y guardar
+Listo — ya puedes escribirle al número de prueba y el bot responde.  */

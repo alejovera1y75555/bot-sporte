@@ -18,7 +18,7 @@ const palabrasClave = [
   'lento', 'lenta', 'tarda', 'demora',
   'no conecta', 'no funciona', 'no carga', 'no abre',
   'pantalla', 'reiniciar', 'reinicio', 'error',
-  'cable', 'soporte', 'falla', 'fallo', 'caída'
+  'cable', 'soporte', 'falla', 'fallo', 'caída' , 'ventilador'
 ];
 
 // ─────────────────────────────────────
