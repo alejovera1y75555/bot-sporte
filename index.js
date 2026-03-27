@@ -11,7 +11,7 @@ app.use(express.json());
 // la alerta cuando pidan un técnico
 // Cámbialo por tu WhatsApp con 57
 // ─────────────────────────────────────
-const TU_NUMERO = '573215269498';
+const TU_NUMERO = '573164648967';
 
 // ─────────────────────────────────────
 // Estado de cada usuario
