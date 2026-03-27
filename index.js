@@ -69,7 +69,7 @@ async function preguntarAClaude(mensajeUsuario) {
     system: `Eres un asistente de soporte técnico amable y claro. 
     Tu trabajo es ayudar a los usuarios a resolver problemas técnicos paso a paso.
     Responde siempre en español, de forma corta y fácil de entender.
-    Máximo 3 pasos por respuesta. Usa emojis para que sea más amigable.`,
+    Máximo 6 pasos por respuesta. Usa emojis para que sea más amigable.`,
     messages: [
       { role: 'user', content: mensajeUsuario }
     ]
@@ -121,18 +121,23 @@ app.post('/webhook', async (req, res) => {
 
     console.log(`📩 Mensaje de ${numeroUsuario}: ${textoUsuario}`);
 
-    // Detectamos si tiene palabra clave
-    if (contienePalabraClave(textoUsuario)) {
-      console.log('🔍 Palabra clave detectada — consultando a Claude...');
+    // Si el usuario NO tiene conversación activa, iniciar conversación SIEMPRE
+    if (!estadoUsuarios[numeroUsuario]) {
+      console.log('🆕 Iniciando conversación');
+
+      estadoUsuarios[numeroUsuario] = true;
 
       const respuestaClaude = await preguntarAClaude(textoUsuario);
       await enviarMensaje(numeroUsuario, respuestaClaude);
 
-      console.log('✅ Respuesta enviada');
-    } else {
-      const mensajeGenerico = '👋 Hola, soy el asistente de soporte técnico...';
-      await enviarMensaje(numeroUsuario, mensajeGenerico);
+      return res.sendStatus(200);
     }
+
+    res.sendStatus(200);
+
+    // Si ya está en conversación, seguir normal
+    const respuestaClaude = await preguntarAClaude(textoUsuario);
+    await enviarMensaje(numeroUsuario, respuestaClaude);
 
     res.sendStatus(200);
 
